@@ -1,0 +1,61 @@
+services:
+  filmes:
+    build: .
+    container_name: filmes
+    hostname: filmes
+    restart: always
+    volumes:
+      - ./filmes:/servico
+    ports:
+      - 7001:5000
+    command: python3 /servico/servico_filmes.py
+    networks:
+      - rede-cineticket
+
+  sessoes:
+    build: .
+    container_name: sessoes
+    hostname: sessoes
+    restart: always
+    volumes:
+      - ./sessoes:/servico
+    ports:
+      - 7002:5000
+    command: python3 /servico/servico_sessoes.py
+    networks:
+      - rede-cineticket
+
+  ingressos:
+    build: .
+    container_name: ingressos
+    hostname: ingressos
+    restart: always
+    volumes:
+      - ./ingressos:/servico
+    ports:
+      - 7003:5000
+    command: python3 /servico/servico_ingressos.py
+    networks:
+      - rede-cineticket
+
+  dados:
+    image: postgres:latest
+    container_name: dados
+    hostname: dados
+    restart: always
+    ports:
+      - "7004:5432"
+    volumes:
+      - ./cineticket.sql:/docker-entrypoint-initdb.d/cineticket.sql
+    environment:
+      - POSTGRES_PASSWORD=admin
+      - POSTGRES_USER=admin
+      - POSTGRES_DB=cineticket
+      - PGDATA=/var/lib/postgresql/data/pgdata
+      - POSTGRES_HOST_AUTH_METHOD=trust
+    networks:
+      - rede-cineticket
+
+networks:
+  rede-cineticket:
+    external: true

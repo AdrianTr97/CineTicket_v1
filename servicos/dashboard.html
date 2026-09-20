@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CineTicket - Dashboard de Gestão</title>
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f0f4f8; /* Fundo levemente azulado */
+            color: #1e293b;
+        }
+
+        /* HEADER AZUL TIPO CINEMA */
+        header {
+            background: #0f172a; /* Azul escuro/Noturno */
+            background: linear-gradient(90deg, #0f172a 0%, #1e3a8a 100%);
+            color: white;
+            padding: 20px 30px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        header h1 {
+            margin: 0;
+            font-size: 28px;
+            font-weight: 700;
+            letter-spacing: 1px;
+        }
+
+        header p {
+            margin: 6px 0 0;
+            opacity: 0.85;
+            font-size: 15px;
+        }
+
+        .dashboard {
+            max-width: 1400px;
+            margin: 25px auto;
+            padding: 0 20px;
+        }
+
+        .cards {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 18px;
+            margin-bottom: 20px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+            border-left: 5px solid #3b82f6; /* Detalhe azul em cada card */
+        }
+
+        .card-title {
+            color: #64748b;
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+        }
+
+        .card-value {
+            font-size: 28px;
+            font-weight: bold;
+            color: #0f172a;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .panel {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        }
+
+        .panel.full {
+            grid-column: 1 / -1;
+        }
+
+        .panel h2 {
+            margin-top: 0;
+            font-size: 19px;
+            color: #1e293b;
+            border-bottom: 2px solid #e2e8f0;
+            padding-bottom: 10px;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 350px;
+        }
+
+        .table-container {
+            max-height: 400px;
+            overflow: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            padding: 12px 10px;
+            border-bottom: 1px solid #f1f5f9;
+            text-align: left;
+        }
+
+        th {
+            background: #f8fafc;
+            position: sticky;
+            top: 0;
+            color: #475569;
+            font-weight: 600;
+        }
+
+        .status {
+            display: inline-block;
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        /* Cores adaptadas para os status dos Ingressos */
+        .status.CONFIRMADO {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .status.UTILIZADO {
+            background: #e0f2fe;
+            color: #0369a1;
+        }
+
+        .status.CANCELADO {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .loading, .error {
+            padding: 20px;
+            text-align: center;
+        }
+
+        .error {
+            color: #991b1b;
+            background: #fee2e2;
+            border-radius: 6px;
+        }
+
+        @media (max-width: 900px) {
+            .cards { grid-template-columns: repeat(2, 1fr); }
+            .grid { grid-template-columns: 1fr; }
+            .panel.full { grid-column: auto; }
+        }
+
+        @media (max-width: 550px) {
+            .cards { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+
+<body>
+<header>
+    <h1>CineTicket - Gestão de Bilheteria</h1>
+    <p>Painel de Controle: Filmes em cartaz, Sessões e Ingressos vendidos</p>
+</header>
+
+<main class="dashboard">
+
+    <section class="cards">
+        <div class="card">
+            <div class="card-title">Total de Ingressos Vendidos</div>
+            <div class="card-value" id="totalTickets">-</div>
+        </div>
+
+        <div class="card">
+            <div class="card-title">Faturamento Total</div>
+            <div class="card-value" id="totalRevenue">-</div>
+        </div>
+
+        <div class="card">
+            <div class="card-title">Sessões Lotadas</div>
+            <div class="card-value" id="fullSessionsCount">-</div>
+        </div>
+
+        <div class="card">
+            <div class="card-title">Filmes em Cartaz</div>
+            <div class="card-value" id="activeMovies">-</div>
+        </div>
+    </section>
+
+    <section class="grid">
+
+        <!-- Ingressos Status -->
+        <div class="panel">
+            <h2>Status dos Ingressos</h2>
+            <div class="chart-container">
+                <canvas id="ticketsStatusChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Ocupação das Sessões -->
+        <div class="panel">
+            <h2>Ocupação das Sessões (Assentos Livres)</h2>
+            <div class="chart-container">
+                <canvas id="sessionOccupancyChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Catalogo de Filmes -->
+        <div class="panel full">
+            <h2>Duração dos Filmes (Catálogo)</h2>
+            <div class="chart-container">
+                <canvas id="moviesChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Tabela de Ingressos -->
+        <div class="panel full">
+            <h2>Últimos Ingressos Emitidos</h2>
+            <div id="ticketsTable" class="table-container">
+                <div class="loading">Carregando dados da bilheteria...</div>
+            </div>
+        </div>
+
+    </section>
+</main>
+
+<script>
+    // Web service endpoints adaptados para o CineTicket
+    // Lembre-se de subir o docker-compose para que as portas 7001, 7002 e 7003 estejam abertas
+    const API = {
+        filmes: "http://localhost:7001/filmes",
+        sessoes: "http://localhost:7002/sessoes",
+        ingressos: "http://localhost:7003/ingressos"
+    };
+
+    let filmesData = [];
+    let sessoesData = [];
+    let ingressosData = [];
+
+    async function fetchJson(url) {
+        const response = await fetch(url);
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status} - ${response.statusText}`);
+        }
+        return response.json();
+    }
+
+    async function loadData() {
+        try {
+            const [filmesReq, sessoesReq, ingressosReq] = await Promise.all([
+                fetchJson(API.filmes),
+                fetchJson(API.sessoes),
+                fetchJson(API.ingressos)
+            ]);
+
+            filmesData = filmesReq;
+            sessoesData = sessoesReq;
+            ingressosData = ingressosReq;
+
+            updateCards();
+            renderTicketsStatusChart();
+            renderSessionOccupancyChart();
+            renderMoviesChart();
+            renderTicketsTable();
+
+        } catch (error) {
+            console.error("Error loading dashboard data:", error);
+            document.getElementById("ticketsTable").innerHTML = `
+                <div class="error">
+                    Não foi possível carregar os dados.<br>
+                    Verifique se os três serviços web (filmes, sessoes, ingressos) estão rodando via Docker.
+                    <br><br>
+                    <small>${error.message}</small>
+                </div>
+            `;
+        }
+    }
+
+    function updateCards() {
+        // Total de Ingressos (ignorando os cancelados para os cards de venda)
+        const validTickets = ingressosData.filter(i => i.status_ingresso !== 'CANCELADO');
+        document.getElementById("totalTickets").textContent = validTickets.length;
+
+        // Faturamento
+        const totalRevenue = validTickets.reduce((sum, ticket) => sum + Number(ticket.preco_pago), 0);
+        document.getElementById("totalRevenue").textContent = totalRevenue.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
+        // Sessões Lotadas
+        const fullSessions = sessoesData.filter(s => s.status === 'LOTADA').length;
+        document.getElementById("fullSessionsCount").textContent = fullSessions;
+
+        // Filmes em Cartaz
+        document.getElementById("activeMovies").textContent = filmesData.length;
+    }
+
+    function renderTicketsStatusChart() {
+        const statusCount = {};
+        ingressosData.forEach(ticket => {
+            statusCount[ticket.status_ingresso] = (statusCount[ticket.status_ingresso] || 0) + 1;
+        });
+
+        new Chart(document.getElementById("ticketsStatusChart"), {
+            type: "doughnut",
+            data: {
+                labels: Object.keys(statusCount),
+                datasets: [{
+                    data: Object.values(statusCount),
+                    backgroundColor: ['#16a34a', '#0284c7', '#dc2626'] // Cores adaptadas: Verde (Confirmado), Azul (Utilizado), Vermelho (Cancelado)
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { position: "bottom" } }
+            }
+        });
+    }
+
+    function renderSessionOccupancyChart() {
+        // Mostra as 10 sessões mais vazias
+        const sortedSessions = [...sessoesData]
+            .sort((a, b) => b.assentos_livres - a.assentos_livres)
+            .slice(0, 10);
+
+        new Chart(document.getElementById("sessionOccupancyChart"), {
+            type: "bar",
+            data: {
+                labels: sortedSessions.map(s => `${s.titulo} (${s.sala})`),
+                datasets: [{
+                    label: "Assentos Livres",
+                    data: sortedSessions.map(s => s.assentos_livres),
+                    backgroundColor: '#3b82f6'
+                }]
+            },
+            options: {
+                indexAxis: "y",
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: { x: { beginAtZero: true } }
+            }
+        });
+    }
+
+    function renderMoviesChart() {
+        new Chart(document.getElementById("moviesChart"), {
+            type: "bar",
+            data: {
+                labels: filmesData.map(f => f.titulo),
+                datasets: [{
+                    label: "Duração (minutos)",
+                    data: filmesData.map(f => f.duracao_minutos),
+                    backgroundColor: '#1e3a8a'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: { beginAtZero: true, title: { display: true, text: 'Minutos' } }
+                }
+            }
+        });
+    }
+
+    function renderTicketsTable() {
+        const container = document.getElementById("ticketsTable");
+
+        if (ingressosData.length === 0) {
+            container.innerHTML = "<p>Nenhum ingresso encontrado.</p>";
+            return;
+        }
+
+        const rows = ingressosData.map(ticket => {
+            const date = new Date(ticket.data_horario);
+            const formattedDate = date.toLocaleString("pt-BR", {dateStyle: 'short', timeStyle: 'short'});
+            const formattedValue = Number(ticket.preco_pago).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
+            return `
+                <tr>
+                    <td>#${ticket.ingresso_id}</td>
+                    <td><strong>${ticket.titulo}</strong></td>
+                    <td>${ticket.sala} - ${ticket.poltrona}</td>
+                    <td>${formattedDate}</td>
+                    <td>${ticket.comprador}</td>
+                    <td><span class="status ${ticket.status_ingresso}">${ticket.status_ingresso}</span></td>
+                    <td>${formattedValue}</td>
+                </tr>
+            `;
+        }).join("");
+
+        container.innerHTML = `
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Filme</th>
+                        <th>Sala / Poltrona</th>
+                        <th>Data da Sessão</th>
+                        <th>Cliente</th>
+                        <th>Status</th>
+                        <th>Valor</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${rows}
+                </tbody>
+            </table>
+        `;
+    }
+
+    // Inicializa o Dashboard
+    loadData();
+</script>
+
+</body>
+</html>
