@@ -1,0 +1,43 @@
+services:
+  filmes-mcp:
+    build: .
+    container_name: filmes-mcp
+    hostname: filmes-mcp
+    restart: always
+    volumes:
+      - ./filmes:/mcp
+    command: python3 /mcp/ferramentas_filmes.py
+    ports:
+      - "8001:8000"
+    networks:
+      - rede-cineticket
+
+  sessoes-mcp:
+    build: .
+    container_name: sessoes-mcp
+    hostname: sessoes-mcp
+    restart: always
+    volumes:
+      - ./sessoes:/mcp
+    command: python3 /mcp/ferramentas_sessoes.py
+    ports:
+      - "8002:8000"
+    networks:
+      - rede-cineticket
+
+  ingressos-mcp:
+    build: .
+    container_name: ingressos-mcp
+    hostname: ingressos-mcp
+    restart: always
+    volumes:
+      - ./ingressos:/mcp
+    command: python3 /mcp/ferramentas_ingressos.py
+    ports:
+      - "8003:8000"
+    networks:
+      - rede-cineticket
+
+networks:
+  rede-cineticket:
+    external: true
